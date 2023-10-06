@@ -3,33 +3,33 @@ on:
     types: [ created ]
 
 jobs:
-  go-binary-release:
-    name: Release Go Binary
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos: [ linux, windows, darwin ]
-        goarch: [ amd64, arm, arm64 ]
-        exclude:
-          - goarch: arm
-            goos: darwin
-          - goarch: arm64
-            goos: windows
-          - goarch: arm
-            goos: windows
-    steps:
-      - uses: actions/checkout@v2
-      - uses: wangyoucao577/go-release-action@v1.22
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          goos: ${{ matrix.goos }}
-          goarch: ${{ matrix.goarch }}
-          asset_name: reactionbot-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
-          binary_name: "reactionbot"
-          extra_files: LICENSE README.md
-          sha256sum: true
-          md5sum: false
-          overwrite: true
+#  go-binary-release:
+#    name: Release Go Binary
+#    runs-on: ubuntu-latest
+#    strategy:
+#      matrix:
+#        goos: [ linux, windows, darwin ]
+#        goarch: [ amd64, arm, arm64 ]
+#        exclude:
+#          - goarch: arm
+#            goos: darwin
+#          - goarch: arm64
+#            goos: windows
+#          - goarch: arm
+#            goos: windows
+#    steps:
+#      - uses: actions/checkout@v2
+#      - uses: wangyoucao577/go-release-action@v1.22
+#        with:
+#          github_token: ${{ secrets.GITHUB_TOKEN }}
+#          goos: ${{ matrix.goos }}
+#          goarch: ${{ matrix.goarch }}
+#          asset_name: reactionbot-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
+#          binary_name: "reactionbot"
+#          extra_files: LICENSE README.md
+#          sha256sum: true
+#          md5sum: false
+#          overwrite: true
   docker-image:
     name: Build Docker Image
     runs-on: ubuntu-latest
