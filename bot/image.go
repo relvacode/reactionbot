@@ -3,10 +3,14 @@ package bot
 import (
 	"bytes"
 	"context"
+	"errors"
 	"github.com/bwmarrin/discordgo"
 	"github.com/h2non/filetype"
 	"github.com/relvacode/reactionbot/bot/interaction"
 	"github.com/relvacode/reactionbot/bot/store"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"log"
 	"net/http"
@@ -48,9 +52,18 @@ func AddImage(ctx context.Context, url string, into store.Store) (*discordgo.Fil
 
 	kind, _ := filetype.Match(buf.Bytes())
 	switch kind.Extension {
-	case "png", "jpg", "gif":
+	case "png":
+		_, err = png.Decode(bytes.NewReader(buf.Bytes()))
+	case "jpg":
+		_, err = jpeg.Decode(bytes.NewReader(buf.Bytes()))
+	case "gif":
+		_, err = gif.Decode(bytes.NewReader(buf.Bytes()))
 	default:
-		log.Printf("attachment must be an image (got %s)", kind.MIME.Value)
+		err = errors.New("not a supported file type")
+	}
+
+	if err != nil {
+		log.Printf("Attachment doesn't look like a valid image: %v", err)
 		return nil, interaction.SafeError("mfw you didn't upload an image")
 	}
 
