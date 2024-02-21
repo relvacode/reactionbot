@@ -10,6 +10,7 @@ COPY . .
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build github.com/relvacode/reactionbot
 
 FROM --platform=${TARGETPLATFORM} alpine
+ENV USER_IMAGES_PATH=/user-images
 
 WORKDIR /
 RUN mkdir /user-images
