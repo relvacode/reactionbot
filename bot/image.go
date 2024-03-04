@@ -6,9 +6,10 @@ import (
 	"errors"
 	"github.com/bwmarrin/discordgo"
 	"github.com/h2non/filetype"
+	"github.com/nfnt/resize"
 	"github.com/relvacode/reactionbot/bot/interaction"
 	"github.com/relvacode/reactionbot/bot/store"
-	"image/gif"
+	"image"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -16,6 +17,27 @@ import (
 	"net/http"
 	"time"
 )
+
+const (
+	MaxImageBytes = 6 << 20
+	MaxImageSize  = 512
+)
+
+// resizeImage img according to MaxImageSize
+func resizeImage(img image.Image) (image.Image, bool) {
+	if img.Bounds().Dx() <= MaxImageSize && img.Bounds().Dy() <= MaxImageSize {
+		return img, false
+	}
+
+	var x uint = MaxImageSize
+	var y uint
+
+	if img.Bounds().Dy() > img.Bounds().Dx() {
+		x, y = y, x
+	}
+
+	return resize.Resize(x, y, img, resize.Lanczos3), true
+}
 
 // AddImage downloads the contents of url and expects it to contain an image.
 // It then stores the contents of the image into the given store.Store.
@@ -44,20 +66,23 @@ func AddImage(ctx context.Context, url string, into store.Store) (*discordgo.Fil
 	}
 
 	var buf bytes.Buffer
-	_, err = io.Copy(&buf, io.LimitReader(resp.Body, 256000))
+	n, err := io.Copy(&buf, io.LimitReader(resp.Body, MaxImageBytes+1))
 	if err != nil {
 		log.Printf("Failed to download response data: %v", err)
 		return nil, interaction.SafeError("mfw i couldn't download the image")
 	}
+	if n > MaxImageBytes {
+		log.Printf("Maximum image size exceeded")
+		return nil, interaction.SafeError("mfw the image was too large")
+	}
 
 	kind, _ := filetype.Match(buf.Bytes())
+	var img image.Image
 	switch kind.Extension {
 	case "png":
-		_, err = png.Decode(bytes.NewReader(buf.Bytes()))
+		img, err = png.Decode(bytes.NewReader(buf.Bytes()))
 	case "jpg":
-		_, err = jpeg.Decode(bytes.NewReader(buf.Bytes()))
-	case "gif":
-		_, err = gif.Decode(bytes.NewReader(buf.Bytes()))
+		img, err = jpeg.Decode(bytes.NewReader(buf.Bytes()))
 	default:
 		err = errors.New("not a supported file type")
 	}
@@ -65,6 +90,22 @@ func AddImage(ctx context.Context, url string, into store.Store) (*discordgo.Fil
 	if err != nil {
 		log.Printf("Attachment doesn't look like a valid image: %v", err)
 		return nil, interaction.SafeError("mfw you didn't upload an image")
+	}
+
+	// Resize image, re-encode to png
+	var resized bool
+	img, resized = resizeImage(img)
+
+	// only re-encode if image was resized
+	if resized {
+		kind = filetype.GetType("png")
+
+		buf.Reset()
+		err = png.Encode(&buf, img)
+		if err != nil {
+			log.Printf("Failed to re-encode image: %v", err)
+			return nil, interaction.SafeError("mfw i couldn't resize the image")
+		}
 	}
 
 	err = into.Store(ctx, kind, buf.Bytes())
